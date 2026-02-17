@@ -1,0 +1,12 @@
+numpy
+pandas
+PyYAML
+spectral
+scikit-image
+scikit-learn
+matplotlib
+tqdm
+
+# Deep learning
+torch
+torchvision
