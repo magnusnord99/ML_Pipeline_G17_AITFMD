@@ -51,7 +51,7 @@ Use the same steps on both machines for reproducible runs.
 3. Install dependencies:
    - `python -m pip install --upgrade pip`
    - `pip install -r requirements.txt`
-4. Verify paths in `configs/preprocessing.yaml` match local dataset location.
+4. Verify paths in `configs/preprocessing/preprocessing.yaml` match local dataset location.
 
 ### Recommended Git Practice
 
