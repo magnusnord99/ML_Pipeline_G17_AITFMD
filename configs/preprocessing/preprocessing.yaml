@@ -1,12 +1,12 @@
 seed: 42
 
 paths:
-  input_dataset_root: "../PKG - HistologyHSI-GB"
-  metadata_csv: "../hsi_3dcnn_project/data/interim/metadata_master.csv"
-  calibrated_dir: "../hsi_3dcnn_project/data/interim/calibrated"
-  masks_dir: "../hsi_3dcnn_project/data/interim/masks"
-  patches_dir: "../hsi_3dcnn_project/data/processed/patches"
-  splits_dir: "../hsi_3dcnn_project/data/splits"
+  input_dataset_root: "../../../PKG - HistologyHSI-GB"
+  metadata_csv: "../../data/interim/metadata_master.csv"
+  calibrated_dir: "../../data/interim/calibrated"
+  masks_dir: "../../data/interim/masks"
+  patches_dir: "../../data/processed/patches"
+  splits_dir: "../../data/splits"
 
 labels:
   tumor_suffix: "_T"

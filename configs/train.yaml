@@ -29,3 +29,9 @@ paths:
   checkpoints_dir: "../hsi_3dcnn_project/outputs/checkpoints"
   logs_dir: "../hsi_3dcnn_project/outputs/logs"
   reports_dir: "../hsi_3dcnn_project/outputs/reports"
+
+splits:
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+
