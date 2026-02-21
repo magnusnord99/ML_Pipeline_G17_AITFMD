@@ -159,6 +159,8 @@ def main() -> None:
     if train_rows.empty:
         raise RuntimeError("No train rows found in split CSV.")
 
+    train_rows = train_rows.sample(frac=0.1, random_state=seed).reset_index(drop=True)
+
     print(f"[pca] collecting train pixels (max={max_train_pixels}) ...")
     train_pixels = _sample_train_pixels(
         train_rows=train_rows,

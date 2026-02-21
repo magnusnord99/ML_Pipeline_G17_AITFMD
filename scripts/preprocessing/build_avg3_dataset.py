@@ -7,6 +7,8 @@ from pathlib import Path
 import sys
 
 import numpy as np
+import pandas as pd 
+from typing import Any
 import yaml
 from tqdm import tqdm
 
@@ -53,13 +55,16 @@ def build_avg3_dataset(
     output_dtype: np.dtype = np.float32,
     max_rois: int | None = None,
     verbose: bool = False,
-) -> int:
-    """Build avg3 cubes and return number of saved ROI cubes."""
+    reduce_bands: bool = True,
+    failures: list[dict[str, Any]] | None = None,
+    """Build avg3 cubes and return saved and failed ROIs."""
     dataset_index = build_dataset_index(
         dataset_root=dataset_root,
         tumor_suffix=tumor_suffix,
         non_tumor_suffix=non_tumor_suffix,
     )
+    if failures is None:
+        failures = []
     valid_rows = dataset_index[dataset_index["is_valid"]].reset_index(drop=True)
 
     saved = 0
@@ -68,38 +73,48 @@ def build_avg3_dataset(
         iterator = tqdm(iterator, total=len(valid_rows), desc="avg3", unit="roi")
 
     for _, row in iterator:
-        patient_id = str(row["patient_id"])
-        roi_name = str(row["roi_name"])
+        try:
+            patient_id = str(row["patient_id"])
+            roi_name = str(row["roi_name"])
 
-        raw = load_envi_cube(Path(row["raw_hdr_path"]), Path(row["raw_path"]))
-        dark = load_envi_cube(Path(row["dark_hdr_path"]), Path(row["dark_path"]))
-        white = load_envi_cube(Path(row["white_hdr_path"]), Path(row["white_path"]))
+            raw = load_envi_cube(Path(row["raw_hdr_path"]), Path(row["raw_path"]))
+            dark = load_envi_cube(Path(row["dark_hdr_path"]), Path(row["dark_path"]))
+            white = load_envi_cube(Path(row["white_hdr_path"]), Path(row["white_path"]))
 
-        calibrated = calibrate_cube(raw, dark, white, eps=eps)
-        clipped = clip_cube(calibrated, clip_min=clip_min, clip_max=clip_max)
-        reduced = reduce_bands_neighbor_average(clipped, window=window)
+            calibrated = calibrate_cube(raw, dark, white, eps=eps)
+            clipped = clip_cube(calibrated, clip_min=clip_min, clip_max=clip_max)
+            if reduce_bands:
+                reduced = reduce_bands_neighbor_average(clipped, window=window)
+            else:
+                reduced = clipped
 
-        out_path = _save_cube(
-            reduced,
-            output_root,
-            patient_id,
-            roi_name,
-            dtype=output_dtype,
-        )
-        saved += 1
-
-        if verbose:
-            print(
-                f"[{saved}] {patient_id}/{roi_name} "
-                f"raw={raw.shape} reduced={reduced.shape} "
-                f"minmax=({float(reduced.min()):.4f}, {float(reduced.max()):.4f}) "
-                f"dtype={np.dtype(output_dtype).name} -> {out_path}"
+            out_path = _save_cube(
+                reduced,
+                output_root,
+                patient_id,
+                roi_name,
+                dtype=output_dtype,
             )
+            saved += 1
 
-        if max_rois is not None and saved >= max_rois:
-            break
+            if verbose:
+                print(
+                    f"[{saved}] {patient_id}/{roi_name} "
+                    f"raw={raw.shape} reduced={reduced.shape} "
+                    f"minmax=({float(reduced.min()):.4f}, {float(reduced.max()):.4f}) "
+                    f"dtype={np.dtype(output_dtype).name} -> {out_path}"
+                )
 
-    return saved
+            if max_rois is not None and saved >= max_rois:
+                break
+        except Exception as e:
+            failures.append({
+                "patient_id": row["patient_id"],
+                "roi_name": row["roi_name"],
+                "error": str(e),
+            })
+
+    return saved, failures
 
 
 def main() -> None:
@@ -143,7 +158,7 @@ def main() -> None:
         )
     output_dtype = np.float16 if args.dtype == "float16" else np.float32
 
-    saved = build_avg3_dataset(
+    saved, failures = build_avg3_dataset(
         dataset_root=dataset_root,
         output_root=output_root,
         tumor_suffix=str(cfg["labels"]["tumor_suffix"]),
@@ -155,8 +170,13 @@ def main() -> None:
         output_dtype=output_dtype,
         max_rois=args.max_rois,
         verbose=args.verbose,
+        reduce_bands=cfg["spectral"]["reduce_bands"],
     )
     print(f"Saved {saved} avg3 cubes to: {output_root} (dtype={np.dtype(output_dtype).name})")
+    if failures:
+        failures_csv = output_root / "failures.csv"
+        pd.DataFrame(failures).to_csv(failures_csv, index=False)
+        print(f"Failed ROIs: {len(failures)} (saved to {failures_csv})")
 
 
 if __name__ == "__main__":
